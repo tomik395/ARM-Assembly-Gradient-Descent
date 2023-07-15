@@ -6,6 +6,10 @@ This project is an implementation of the gradient descent algorithm, commonly us
 ## Code Structure
 The primary code structure includes two main components: `main` and `train`. The `main` section sets up various parameters such as array size, learning rate, epochs, and array memory. The `train` function runs the gradient descent algorithm by calculating the gradients and updating the parameters.
 
+## Register Structure and data
+Registers.xlsx shows which registers are reserved or allocated to certain register values.
+RawSOCRData.txt, RawSOCRDataCopyPaste.txt, SOCRdata.txt, and SOCRdataCopyPaste.txt are text files consting of data starting points and program parameters. These values can be changed, regression will function as usual.
+
 ### main
 The `main` section starts by loading the parameters from memory including array size, learning rate, number of epochs, mean and standard deviation for X and Y, and more. It then initiates variables M (Slope) and C (Y-intercept) to zero, and sets i and j to zero, which will be used in the train function as loop counters. It then calls the train function.
 
