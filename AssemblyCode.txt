@@ -1,0 +1,163 @@
+main:
+
+LDA X10, arraySize
+LDUR X2, [X10, #0] // ARRAY SIZE
+LDA X10, learningRate
+LDURS S10, [X10, #0] // learningRate
+LDA X10, zeroFloat
+LDURS S11, [X10, #0] // zeroFloat
+LDA X10, inverseN
+LDURS S12, [X10, #0] // inverseN
+LDA X10, minusTwoInverseN
+LDURS S13, [X10, #0] // -2/inverse
+LDA X10, absoluteLossThresh 
+LDURS S14, [X10, #0] // A.LOSS.T
+LDA X10, epsilon
+LDURS S15, [X10, #0] // epsilon
+LDA X10, xMean
+LDURS S16, [x10, #0] //xMean
+LDA X10, yMean
+LDURS S17, [x10, #0] //yMean
+LDA X10, xSD
+LDURS S18, [x10, #0] //ySD
+LDA X10, ySD
+LDURS S19, [x10, #0] //xSD
+LDA X10, epochs
+LDUR X9, [X10, #0] // epochs
+LDA X13, array 
+
+FADDS S0, S11, S11 //Set M
+FADDS S1, S11, S11 //Set C
+
+
+ADDI X19, XZR, #0 //Set i
+ADDI X20, XZR, #0 //Set j
+
+BL train
+stop
+
+train:
+
+	SUBI SP, SP, #64 //Setup Stack Frame (64 bits for now, reduce)
+	STUR FP, [SP, #56] //Store Frame Pointer
+	STUR LR, [SP, #48] //Store LR (we might not need this, only if we need to go back to main)
+	ADDI FP, [SP, #56] //Move FP up
+
+loopONE:
+	//OUTER i LOOP START//
+	FSUBS S21, [S21, S21] //D_m FP reg = 0
+	FSUBS S22, [S22, S22] //D_c FP reg = 0
+
+	//INNER j LOOP START
+	ADDI X20, XZR, #0 //Reset j to 0
+	BL datasetSize
+
+	FMULS S21, S21, S13
+	FMULS S22, S22, S13
+	FMULS S21, S21, S10
+	FSUBS S0, S0, S21
+	FMULS S22, S22, S10
+	FSUBS S1, S1, S22
+
+ 
+	ADDI X8, XZR, #0 // i... for the loop
+	ADDI X7, X13, #0 // temporary variable contains the address to the array
+	FADDS S9, S7, S11 // S9 is for the previous loss
+	FADDS S7, S11, S11
+
+	BL lossFunc
+   
+	//first break
+	FCMPS S7, S14
+	B.LT break
+    
+	//second break
+	FSUBS S6, S7, S9
+	FCMPS S6, S11
+	B.EQ Zero
+	FCMPS S6, S11 
+	B.LT Neg
+	FCMPS S6, S15
+	B.LT break
+	B Zero
+Neg:
+	FSUBS S6, S11, S6
+	FCMPS S6, S15
+	B.LT break
+	B Zero
+Zero:
+
+	ADDI X19, [X19, #1] //add 1 to i
+	SUBS XZR, X19, X9 //check for conditional recursion in i
+	B.LT loopONE
+
+	B break
+
+lossFunc:
+	LDURS S2, [X7, #0]
+	LDURS S3, [X7, #4]
+
+	//Normalize X
+	FSUBS S2, S2, S16
+	FDIVS S2, S2, S18
+
+	//Normalize Y
+	FSUBS S3, S3, S17
+	FDIVS S3, S3, S19
+
+	FMULS S2, S2, S0
+	FADDS S2, S2, S1
+	FSUBS S4, S3, S2
+	FMULS S4, S4, S4
+	FADDS S7, S7, S4
+
+	ADDI X7, X7, #8
+	ADDI X8, X8, #1
+	SUBS XZR, X8, X2
+	B.LT lossFunc 
+	FMULS S7, S7, S12
+	BR LR
+   
+datasetSize:
+	ADDI X25, XZR, #8
+	MUL X24, X20, X25
+	ADD X24, X13, X24
+	LDURS S24, [X24, #0] //Load First Datapoint Array value into S24
+	LDURS S25, [X24, #4] //Load Second Datapoint Array value into S25
+
+	//Normalize X
+	FSUBS S24, S24, S16
+	FDIVS S24, S24, S18
+
+	//Normalize Y
+	FSUBS S25, S25, S17
+	FDIVS S25, S25, S19
+
+	//CALCULATE D_m (S21)
+	FADDS S26, S21, S11
+	FMULS S21, S0, S24
+	FADDS S21, S21, S1
+	FSUBS S21, S25, S21
+	FMULS S21, S24, S21
+	FADDS S21, S21, S26
+
+	//CALCULATE D_c (S22)
+	FADDS S26, S22, S11
+	FMULS S22, S0, S24
+	FADDS S22, S22, S1
+	FSUBS S22, S25, S22
+	FADDS S22, S22, S26
+
+    
+	ADDI X20, [X20, #1] //add 1 to j
+	SUBS XZR, X20, X2 //check for conditional recursion in j
+	B.LT datasetSize
+	BR LR
+
+break:
+	LDUR LR, [FP, #-8] //Get Link Register from memory 
+	LDUR FP, [FP, #0] //Get Frame Pointer from memory
+	ADDI SP, [SP, #64] //Move SP back
+
+	BR LR //go back to main
+	
